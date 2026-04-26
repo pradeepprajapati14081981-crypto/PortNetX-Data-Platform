@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PortNetX Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 text-gray-800 font-sans">
+
+    <header class="bg-blue-900 text-white shadow-md">
+        <div class="container mx-auto px-6 py-4 flex justify-between items-center">
+            <h1 class="text-2xl font-bold tracking-wider">🚢 PortNetX</h1>
+            <nav>
+                <ul class="flex space-x-6 font-semibold">
+                    <li onclick="showTab('traffic-hub')" class="cursor-pointer hover:text-blue-300">Traffic Hub</li>
+                    <li onclick="showTab('green-metrics')" class="cursor-pointer hover:text-blue-300">Green Metrics</li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+
+    <main class="container mx-auto px-6 py-8">
+        
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div class="bg-white p-6 rounded-lg shadow border-l-4 border-blue-600">
+                <p class="text-gray-500 text-xs font-bold uppercase tracking-widest">Total Vessels Logged</p>
+                <p class="text-3xl font-bold text-gray-800 mt-1">1,240</p>
+            </div>
+            <div class="bg-white p-6 rounded-lg shadow border-l-4 border-yellow-500">
+                <p class="text-gray-500 text-xs font-bold uppercase tracking-widest">Avg. Delay Time</p>
+                <div class="flex items-baseline space-x-2">
+                    <p class="text-3xl font-bold text-gray-800 mt-1">2.4</p>
+                    <p class="text-gray-500 font-medium text-sm">hours</p>
+                </div>
+            </div>
+            <div class="bg-white p-6 rounded-lg shadow border-l-4 border-green-500">
+                <p class="text-gray-500 text-xs font-bold uppercase tracking-widest">Port Sustainability</p>
+                <p class="text-3xl font-bold text-green-600 mt-1">94%</p>
+            </div>
+        </div>
+
+        <div id="traffic-hub">
+            <h2 class="text-3xl font-bold mb-6">Live Vessel Traffic</h2>
+            <div class="bg-white rounded-lg shadow border border-gray-200 overflow-hidden">
+                <table class="min-w-full text-left text-sm text-gray-600">
+                    <thead class="bg-gray-50 border-b border-gray-200 text-gray-800">
+                        <tr>
+                            <th class="px-6 py-4 font-semibold">Vessel ID</th>
+                            <th class="px-6 py-4 font-semibold">Type</th>
+                            <th class="px-6 py-4 font-semibold">Arrival Time</th>
+                            <th class="px-6 py-4 font-semibold">Status</th>
+                            <th class="px-6 py-4 font-semibold">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="vessel-table-body" class="divide-y divide-gray-100">
+                        <tr id="loading-row">
+                            <td colspan="5" class="px-6 py-10 text-center text-gray-400 italic">Connecting to PortNetX API...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="green-metrics" class="hidden">
+            <h2 class="text-3xl font-bold mb-6 text-green-700">Green Metrics</h2>
+            <div class="bg-white p-10 rounded-lg shadow border border-green-200 text-center">
+                <p class="text-2xl font-bold text-green-600">🌱 Sustainability Report</p>
+                <p class="mt-4 text-gray-600 font-medium">Real-time emissions reduced by 12% across all berths.</p>
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        // Function to switch tabs
+        function showTab(tabId) {
+            document.getElementById('traffic-hub').classList.add('hidden');
+            document.getElementById('green-metrics').classList.add('hidden');
+            document.getElementById(tabId).classList.remove('hidden');
+        }
+
+        // Function to load real data from the Flask API
+        async function loadVesselData() {
+            try {
+                const response = await fetch('http://127.0.0.1:5000/api/vessels');
+                const data = await response.json();
+                
+                const tableBody = document.getElementById('vessel-table-body');
+                tableBody.innerHTML = ''; // Clear the loading message
+                
+                data.forEach(vessel => {
+                    const isSevere = vessel.Severe_Delay_Flag === 1 || vessel.Severe_Delay_Flag === true;
+                    const statusColor = isSevere ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700';
+                    const statusText = isSevere ? 'Severe Delay' : 'On Time';
+                    
+                    const row = `
+                        <tr class="hover:bg-gray-50 border-b">
+                            <td class="px-6 py-4 font-medium">${vessel.Vessel_ID}</td>
+                            <td class="px-6 py-4">${vessel.Vessel_Type}</td>
+                            <td class="px-6 py-4">${vessel.Actual_Arrival}</td>
+                            <td class="px-6 py-4">
+                                <span class="${statusColor} px-2 py-1 rounded-full text-xs font-bold">
+                                    ${statusText}
+                                </span>
+                            </td>
+                            <td class="px-6 py-4">
+                                <button onclick="verifyBlockchain('${vessel.Vessel_ID}')" class="bg-blue-600 hover:bg-blue-700 text-white text-xs px-3 py-1 rounded shadow transition">
+                                    Verify eDoc
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                    tableBody.innerHTML += row;
+                });
+            } catch (e) { 
+                console.error("API Error:", e);
+                document.getElementById('vessel-table-body').innerHTML = 
+                    '<tr><td colspan="5" class="px-6 py-10 text-center text-red-500 font-bold">Backend Offline. Please run app.py!</td></tr>';
+            }
+        }
+
+        // Function to verify data using Blockchain simulation
+        async function verifyBlockchain(vesselId) {
+            try {
+                const response = await fetch(`http://127.0.0.1:5000/api/verify/${vesselId}`);
+                const result = await response.json();
+                alert(`🔒 PortNetX Blockchain Verified\n\nVessel: ${vesselId}\nResult: ${result.status}\nFingerprint: ${result.hash.substring(0,24)}...`);
+            } catch (e) {
+                alert("Verification failed. Is your Python server running?");
+            }
+        }
+
+        // Start the loading process
+        loadVesselData(); 
+    </script>
+</body>
+</html>
